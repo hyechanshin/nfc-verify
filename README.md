@@ -8,7 +8,7 @@ Git Repo: https://github.com/hyechanshin/nfc-verify
 
 Members: Hyechan Shin
 
-Front end: React + Vite
+Front end: React (Vite) + TypeScript
 
 Back end: Node.js + Express
 
