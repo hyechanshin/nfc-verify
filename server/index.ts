@@ -1,10 +1,15 @@
-require('dotenv').config();
-const tagRoutes = require('./routes/tags');
-const express = require('express');
-const mongoose = require('mongoose');
+import 'dotenv/config';
+import express from 'express';
+import mongoose from 'mongoose';
+import tagRoutes from './routes/tags';
 
 const app = express();
 const PORT = process.env.PORT || 4000;
+
+const mongoUri = process.env.MONGO_URI;
+if (!mongoUri) {
+  throw new Error('MONGO_URI is not set in .env');
+}
 
 app.get('/', (req, res) => {
   res.send('NFC verify server is running');
@@ -13,7 +18,7 @@ app.get('/', (req, res) => {
 app.use(express.json());
 app.use('/api/tags', tagRoutes);
 
-mongoose.connect(process.env.MONGO_URI)
+mongoose.connect(mongoUri)
   .then(() => {
     console.log('Connected to MongoDB');
     app.listen(PORT, () => {
@@ -21,5 +26,5 @@ mongoose.connect(process.env.MONGO_URI)
     });
   })
   .catch((err) => {
-    console.error('MongoDB connection failed:', err.message);
+    console.error('MongoDB connection failed:', err);
   });
