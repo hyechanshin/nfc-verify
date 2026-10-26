@@ -18,7 +18,7 @@ body {
 }
 
 .page {
-  max-width: 720px;
+  max-width: 1000px;
   margin: 0 auto;
   padding: 24px 16px 48px;
 }
@@ -29,8 +29,6 @@ h3 { margin: 0 0 12px; font-size: 1rem; }
 
 .subtle { color: var(--subtle); margin: 4px 0 0; }
 .mono { font-family: ui-monospace, Consolas, monospace; }
-
-header { margin-bottom: 16px; }
 
 .card {
   background: var(--card);
@@ -72,3 +70,34 @@ th { color: var(--subtle); font-weight: 600; }
 
 .ok-text { color: var(--ok); }
 .bad-text { color: var(--bad); }
+
+a { color: inherit; }
+
+.topbar {
+  display: flex;
+  align-items: center;
+  gap: 24px;
+  padding-bottom: 16px;
+  margin-bottom: 24px;
+  border-bottom: 1px solid var(--border);
+}
+.topbar nav a {
+  text-decoration: none;
+  color: var(--subtle);
+  font-weight: 600;
+}
+.topbar nav a.active { color: var(--text); }
+
+.page-title { margin-bottom: 16px; }
+
+.back {
+  display: inline-block;
+  margin-bottom: 16px;
+  color: var(--subtle);
+  text-decoration: none;
+}
+.back:hover { color: var(--text); }
+
+table.clickable tbody tr { cursor: pointer; }
+table.clickable tbody tr:hover { background: var(--bg); }
+table.clickable a { text-decoration: none; font-weight: 600; }
