@@ -22,6 +22,7 @@ body {
   margin: 0 auto;
   padding: 24px 16px 48px;
 }
+.page.narrow { max-width: 640px; }
 
 h1 { margin: 0; font-size: 1.5rem; }
 h2 { margin: 0; font-size: 1.25rem; }

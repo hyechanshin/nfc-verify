@@ -1,0 +1,65 @@
+import crypto from 'crypto';
+import { Router, Request, Response } from 'express';
+import Tag from '../models/Tag';
+import Scan, { ScanReason } from '../models/Scan';
+import { sdmMac } from '../sdm';
+
+const router = Router();
+
+// GET /api/verify?uid=..&ctr=..&cmac=.. : the values a tag mirrors into its URL on each tap.
+router.get('/', async (req: Request, res: Response) => {
+  const uid = String(req.query.uid ?? '').toUpperCase();
+  const ctr = String(req.query.ctr ?? '').toUpperCase();
+  const cmac = String(req.query.cmac ?? '').toUpperCase();
+
+  if (!/^[0-9A-F]{14}$/.test(uid) || !/^[0-9A-F]{6}$/.test(ctr) || !/^[0-9A-F]{16}$/.test(cmac)) {
+    return res.status(400).json({ error: 'This link is incomplete or damaged. Tap the tag again.' });
+  }
+
+  try {
+    const tag = await Tag.findOne({ uid }).select('+sdmFileReadKey').lean();
+    if (!tag) {
+      return res.status(404).json({ error: 'This tag is not registered with NFC Verify.' });
+    }
+
+    const counter = parseInt(ctr, 16);
+    const expected = Buffer.from(sdmMac(tag.sdmFileReadKey, uid, ctr), 'hex');
+    const signatureOk = crypto.timingSafeEqual(expected, Buffer.from(cmac, 'hex'));
+
+    // A genuine tap always has a higher counter than the last genuine tap.
+    // A lower or equal one means an old URL was reused (copied link or cloned data).
+    const lastGenuine = await Scan.findOne({ tagUid: uid, valid: true }).sort({ counter: -1 }).lean();
+    const lastGenuineCounter = lastGenuine?.counter ?? null;
+
+    let reason: ScanReason = 'ok';
+    if (!signatureOk) reason = 'bad_cmac';
+    else if (lastGenuineCounter !== null && counter <= lastGenuineCounter) reason = 'replay';
+    const valid = reason === 'ok';
+
+    const scan = await Scan.create({ tagUid: uid, counter, cmac, valid, reason, ip: req.ip });
+
+    const [scanCount, recentScans] = await Promise.all([
+      Scan.countDocuments({ tagUid: uid }),
+      Scan.find({ tagUid: uid }).sort({ scannedAt: -1 }).limit(5).select('scannedAt counter valid reason -_id').lean()
+    ]);
+
+    res.json({
+      result: valid ? 'genuine' : 'invalid',
+      reason,
+      uid,
+      itemName: tag.itemName ?? null,
+      ctr,
+      counter,
+      cmac,
+      lastGenuineCounter,
+      scannedAt: scan.scannedAt,
+      scanCount,
+      recentScans
+    });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Could not verify the tag. Please try again.' });
+  }
+});
+
+export default router;

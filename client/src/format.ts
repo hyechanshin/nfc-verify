@@ -1,7 +1,6 @@
-// Counter is a 3-byte little-endian value in the SDM payload.
+// The tag mirrors its 3-byte read counter into the URL MSB first, e.g. 5 -> "000005".
 export function counterHex(n: number): string {
-  const hex = n.toString(16).padStart(6, '0').toUpperCase();
-  return hex.match(/../g)!.reverse().join('');
+  return n.toString(16).padStart(6, '0').toUpperCase();
 }
 
 export function formatUid(uid: string): string {

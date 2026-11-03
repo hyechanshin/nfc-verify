@@ -5,8 +5,11 @@ import express from 'express';
 import mongoose from 'mongoose';
 import tagRoutes from './routes/tags';
 import dashboardRoutes from './routes/dashboard';
+import verifyRoutes from './routes/verify';
 
 const app = express();
+// Render sits behind a proxy; this makes req.ip the visitor's address.
+app.set('trust proxy', 1);
 const PORT = process.env.PORT || 4000;
 
 const mongoUri = process.env.MONGO_URI;
@@ -21,6 +24,7 @@ app.get('/api/health', (req, res) => {
 app.use(express.json());
 app.use('/api/tags', tagRoutes);
 app.use('/api/dashboard', dashboardRoutes);
+app.use('/api/verify', verifyRoutes);
 app.use('/api', (req, res) => {
   res.status(404).json({ error: 'Not found' });
 });
