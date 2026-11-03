@@ -93,6 +93,11 @@ a { color: inherit; }
   font-weight: 600;
 }
 .topbar nav a.active { color: var(--text); }
+.topbar .logout {
+  margin-left: auto;
+  padding: 6px 12px;
+  font-size: 0.9rem;
+}
 
 .page-title { margin-bottom: 16px; }
 .page-title.row {

@@ -122,6 +122,22 @@ export function verifyTap(search: string): Promise<VerifyResult> {
   return pending;
 }
 
+export function getSession(): Promise<{ admin: boolean }> {
+  return request('/api/auth/me');
+}
+
+export function login(password: string): Promise<{ admin: boolean }> {
+  return request('/api/auth/login', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ password })
+  });
+}
+
+export function logout(): Promise<{ admin: boolean }> {
+  return request('/api/auth/logout', { method: 'POST' });
+}
+
 export function deleteTag(uid: string): Promise<void> {
   return request<void>(`/api/tags/${uid}`, { method: 'DELETE' });
 }
