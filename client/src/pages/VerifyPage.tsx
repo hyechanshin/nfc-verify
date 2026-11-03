@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
-import { useLocation } from 'react-router';
-import { verifyTap, type VerifyResult } from '../api';
+import { Link, useLocation } from 'react-router';
+import { ApiError, verifyTap, type VerifyResult } from '../api';
 import { formatDate, formatUid } from '../format';
 import ScanResult from '../ScanResult';
 
@@ -17,12 +17,17 @@ export default function VerifyPage() {
   const { search } = useLocation();
   const [result, setResult] = useState<VerifyResult | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [unregistered, setUnregistered] = useState(false);
 
   useEffect(() => {
     let cancelled = false;
     verifyTap(search).then(
       (r) => !cancelled && setResult(r),
-      (err: Error) => !cancelled && setError(err.message)
+      (err: Error) => {
+        if (cancelled) return;
+        if (err instanceof ApiError && err.status === 404) setUnregistered(true);
+        else setError(err.message);
+      }
     );
     return () => {
       cancelled = true;
@@ -35,7 +40,7 @@ export default function VerifyPage() {
         <h1>NFC Verify</h1>
       </header>
 
-      {!result && !error && (
+      {!result && !error && !unregistered && (
         <section className="card">
           <p>Verifying tag…</p>
           <p className="subtle">This can take a little longer if the server was asleep.</p>
@@ -50,6 +55,22 @@ export default function VerifyPage() {
             <p className="subtle">{error}</p>
           </div>
         </section>
+      )}
+
+      {unregistered && (
+        <main>
+          <section className="card status none">
+            <span className="badge">NOT REGISTERED</span>
+            <div>
+              <h2>Unknown tag</h2>
+              <p className="subtle">This tag is not registered with NFC Verify, so it can't be checked yet.</p>
+            </div>
+          </section>
+          <div className="actions">
+            {/* Carries uid/ctr/cmac along so the server can check the key against this tap. */}
+            <Link className="btn primary" to={`/tags/new${search}`}>Register this tag (admin)</Link>
+          </div>
+        </main>
       )}
 
       {result && (

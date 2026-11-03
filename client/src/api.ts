@@ -5,6 +5,8 @@ export interface NewTag {
   itemName: string;
   ownerName?: string;
   sdmFileReadKey: string;
+  // A tap of the tag; when given, the server checks the key against it before saving.
+  tap?: { ctr: string; cmac: string };
 }
 
 export interface SavedTag {
@@ -62,18 +64,28 @@ export interface DashboardData {
   }[];
 }
 
+// Error with the HTTP status, so pages can react to e.g. 404 differently.
+export class ApiError extends Error {
+  constructor(message: string, public status: number) {
+    super(message);
+  }
+}
+
 async function request<T>(path: string, init?: RequestInit): Promise<T> {
   let res: Response;
   try {
     res = await fetch(path, init);
   } catch {
-    throw new Error("Can't reach the server. Is it running?");
+    throw new ApiError("Can't reach the server. Is it running?", 0);
   }
   const body = await res.json().catch(() => null);
   if (!res.ok) {
-    if (body?.error) throw new Error(body.error);
+    if (body?.error) throw new ApiError(body.error, res.status);
     // Vite's proxy answers 5xx with an empty body when the API is down.
-    throw new Error(res.status >= 500 ? "Can't reach the server. Is it running?" : `Request failed (${res.status})`);
+    throw new ApiError(
+      res.status >= 500 ? "Can't reach the server. Is it running?" : `Request failed (${res.status})`,
+      res.status
+    );
   }
   return body as T;
 }

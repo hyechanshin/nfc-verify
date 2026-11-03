@@ -2,13 +2,34 @@ import { Router, Request, Response } from 'express';
 import mongoose from 'mongoose';
 import Tag from '../models/Tag';
 import Scan from '../models/Scan';
+import { sdmMac } from '../sdm';
 
 const router = Router();
 
 router.post('/', async (req: Request, res: Response) => {
-  const { uid, itemName, ownerName, sdmFileReadKey } = req.body ?? {};
+  const { uid, itemName, ownerName, sdmFileReadKey, tap } = req.body ?? {};
+
+  // Registering from a tap: prove the key matches the physical tag before saving.
+  let claim: { counter: number; cmac: string } | null = null;
+  if (tap) {
+    const u = String(uid ?? '').toUpperCase();
+    const key = String(sdmFileReadKey ?? '').toUpperCase();
+    const ctr = String(tap.ctr ?? '').toUpperCase();
+    const cmac = String(tap.cmac ?? '').toUpperCase();
+    if (!/^[0-9A-F]{14}$/.test(u) || !/^[0-9A-F]{32}$/.test(key) || !/^[0-9A-F]{6}$/.test(ctr) || !/^[0-9A-F]{16}$/.test(cmac)) {
+      return res.status(400).json({ error: 'UID, key or tap data has the wrong format' });
+    }
+    if (sdmMac(key, u, ctr) !== cmac) {
+      return res.status(400).json({ error: "This key doesn't match the tag. Check the key and try again." });
+    }
+    claim = { counter: parseInt(ctr, 16), cmac };
+  }
+
   try {
     const tag = await Tag.create({ uid, itemName, ownerName, sdmFileReadKey });
+    if (claim) {
+      await Scan.create({ tagUid: tag.uid, ...claim, valid: true, reason: 'ok', ip: req.ip });
+    }
     const { sdmFileReadKey: _key, ...safe } = tag.toObject();
     res.status(201).json(safe);
   } catch (err) {
