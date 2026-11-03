@@ -12,12 +12,63 @@ function explain(r: VerifyResult): string {
   return 'This link was already used. Tap the tag again for a fresh check.';
 }
 
+interface TapDetailsProps {
+  uid: string;
+  ctr: string;
+  cmac: string;
+  cmacNote: string;
+  checkedAt?: string;
+}
+
+// What the tag put in the link, raw and readable.
+function TapDetails({ uid, ctr, cmac, cmacNote, checkedAt }: TapDetailsProps) {
+  return (
+    <section className="card">
+      <h3>Tag details</h3>
+      <table>
+        <thead>
+          <tr>
+            <th>Field</th>
+            <th>Raw (hex)</th>
+            <th>Readable</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td>UID</td>
+            <td className="mono">{uid}</td>
+            <td className="mono">{formatUid(uid)}</td>
+          </tr>
+          <tr>
+            <td>Tap counter</td>
+            <td className="mono">{ctr}</td>
+            <td>Tap #{parseInt(ctr, 16)}</td>
+          </tr>
+          <tr>
+            <td>CMAC</td>
+            <td className="mono">{cmac}</td>
+            <td>{cmacNote}</td>
+          </tr>
+          {checkedAt && (
+            <tr>
+              <td>Checked</td>
+              <td className="mono">—</td>
+              <td>{formatDate(checkedAt)}</td>
+            </tr>
+          )}
+        </tbody>
+      </table>
+    </section>
+  );
+}
+
 // Public page a phone opens when it taps a tag. No admin navigation or private data.
 export default function VerifyPage() {
   const { search } = useLocation();
   const [result, setResult] = useState<VerifyResult | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [unregistered, setUnregistered] = useState(false);
+  const params = new URLSearchParams(search);
 
   useEffect(() => {
     let cancelled = false;
@@ -66,6 +117,13 @@ export default function VerifyPage() {
               <p className="subtle">This tag is not registered with NFC Verify, so it can't be checked yet.</p>
             </div>
           </section>
+          {/* The server only answers 404 after the link passed its format checks. */}
+          <TapDetails
+            uid={params.get('uid')!.toUpperCase()}
+            ctr={params.get('ctr')!.toUpperCase()}
+            cmac={params.get('cmac')!.toUpperCase()}
+            cmacNote="Not checked (no key on file)"
+          />
           <div className="actions">
             {/* Carries uid/ctr/cmac along so the server can check the key against this tap. */}
             <Link className="btn primary" to={`/tags/new${search}`}>Register this tag (admin)</Link>
@@ -83,40 +141,13 @@ export default function VerifyPage() {
             </div>
           </section>
 
-          <section className="card">
-            <h3>Tag details</h3>
-            <table>
-              <thead>
-                <tr>
-                  <th>Field</th>
-                  <th>Raw (hex)</th>
-                  <th>Readable</th>
-                </tr>
-              </thead>
-              <tbody>
-                <tr>
-                  <td>UID</td>
-                  <td className="mono">{result.uid}</td>
-                  <td className="mono">{formatUid(result.uid)}</td>
-                </tr>
-                <tr>
-                  <td>Tap counter</td>
-                  <td className="mono">{result.ctr}</td>
-                  <td>Tap #{result.counter}</td>
-                </tr>
-                <tr>
-                  <td>CMAC</td>
-                  <td className="mono">{result.cmac}</td>
-                  <td>{result.reason === 'bad_cmac' ? 'Does not match' : 'Valid signature'}</td>
-                </tr>
-                <tr>
-                  <td>Checked</td>
-                  <td className="mono">—</td>
-                  <td>{formatDate(result.scannedAt)}</td>
-                </tr>
-              </tbody>
-            </table>
-          </section>
+          <TapDetails
+            uid={result.uid}
+            ctr={result.ctr}
+            cmac={result.cmac}
+            cmacNote={result.reason === 'bad_cmac' ? 'Does not match' : 'Valid signature'}
+            checkedAt={result.scannedAt}
+          />
 
           <section className="card">
             <h3>Scan history</h3>
