@@ -114,7 +114,7 @@ export default function VerifyPage() {
             <span className="badge">NOT REGISTERED</span>
             <div>
               <h2>Unknown tag</h2>
-              <p className="subtle">This tag is not registered with NFC Verify, so it can't be checked yet.</p>
+              <p className="subtle">This tag is not registered with NFC Verify yet. Registering checks the key against this tap, so only a genuine tag can be added.</p>
             </div>
           </section>
           {/* The server only answers 404 after the link passed its format checks. */}
@@ -122,7 +122,7 @@ export default function VerifyPage() {
             uid={params.get('uid')!.toUpperCase()}
             ctr={params.get('ctr')!.toUpperCase()}
             cmac={params.get('cmac')!.toUpperCase()}
-            cmacNote="Not checked (no key on file)"
+            cmacNote="Checked when you register"
           />
           <div className="actions">
             {/* Carries uid/ctr/cmac along so the server can check the key against this tap. */}
