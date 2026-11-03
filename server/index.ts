@@ -6,6 +6,7 @@ import mongoose from 'mongoose';
 import tagRoutes from './routes/tags';
 import dashboardRoutes from './routes/dashboard';
 import verifyRoutes from './routes/verify';
+import { authRoutes, requireAdmin } from './auth';
 
 const app = express();
 // Render sits behind a proxy; this makes req.ip the visitor's address.
@@ -16,15 +17,21 @@ const mongoUri = process.env.MONGO_URI;
 if (!mongoUri) {
   throw new Error('MONGO_URI is not set in .env');
 }
+if (!process.env.ADMIN_PASSWORD) {
+  throw new Error('ADMIN_PASSWORD is not set in .env');
+}
 
 app.get('/api/health', (req, res) => {
   res.json({ status: 'ok' });
 });
 
 app.use(express.json());
-app.use('/api/tags', tagRoutes);
-app.use('/api/dashboard', dashboardRoutes);
+// Public: phones tapping a tag, and logging in.
 app.use('/api/verify', verifyRoutes);
+app.use('/api/auth', authRoutes);
+// Admin only.
+app.use('/api/tags', requireAdmin, tagRoutes);
+app.use('/api/dashboard', requireAdmin, dashboardRoutes);
 app.use('/api', (req, res) => {
   res.status(404).json({ error: 'Not found' });
 });
