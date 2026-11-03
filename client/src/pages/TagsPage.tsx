@@ -7,9 +7,12 @@ export default function TagsPage() {
 
   return (
     <main>
-      <div className="page-title">
-        <h2>Tags</h2>
-        <p className="subtle">{items.length} tags</p>
+      <div className="page-title row">
+        <div>
+          <h2>Tags</h2>
+          <p className="subtle">{items.length} tags</p>
+        </div>
+        <Link className="btn primary" to="/tags/new">+ Register tag</Link>
       </div>
 
       <section className="card">

@@ -93,6 +93,77 @@ a { color: inherit; }
 .topbar nav a.active { color: var(--text); }
 
 .page-title { margin-bottom: 16px; }
+.page-title.row {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 16px;
+  flex-wrap: wrap;
+}
+
+.btn {
+  display: inline-block;
+  padding: 8px 16px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--card);
+  color: var(--text);
+  font: inherit;
+  font-weight: 600;
+  text-decoration: none;
+  cursor: pointer;
+}
+.btn.primary {
+  background: var(--text);
+  border-color: var(--text);
+  color: var(--card);
+}
+.btn:disabled { opacity: 0.6; cursor: default; }
+
+.link-btn {
+  padding: 0;
+  border: none;
+  background: none;
+  font: inherit;
+  color: var(--text);
+  text-decoration: underline;
+  cursor: pointer;
+}
+
+.actions {
+  display: flex;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.form {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  max-width: 520px;
+}
+.form label {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  font-weight: 600;
+}
+.form label small { font-weight: 400; }
+.form input {
+  padding: 8px 10px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  font-size: 1rem;
+  font-weight: 400;
+}
+.form input.mono { font-family: ui-monospace, Consolas, monospace; }
+.form-error {
+  margin: 0;
+  padding: 10px 12px;
+  border-radius: 8px;
+  background: var(--bad-bg);
+  color: var(--bad);
+}
 
 .back {
   display: inline-block;
