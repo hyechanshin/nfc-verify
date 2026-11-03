@@ -15,16 +15,33 @@ export interface SavedTag {
   createdAt: string;
 }
 
+export type ScanReason = 'ok' | 'bad_cmac' | 'replay';
+
 export interface Scan {
   _id: string;
   scannedAt: string;
   counter?: number;
   valid?: boolean;
+  reason?: ScanReason;
   ip?: string;
 }
 
 export interface TagListItem extends SavedTag {
   lastScan: Pick<Scan, 'scannedAt' | 'counter' | 'valid'> | null;
+}
+
+export interface VerifyResult {
+  result: 'genuine' | 'invalid';
+  reason: ScanReason;
+  uid: string;
+  itemName: string | null;
+  ctr: string;
+  counter: number;
+  cmac: string;
+  lastGenuineCounter: number | null;
+  scannedAt: string;
+  scanCount: number;
+  recentScans: Pick<Scan, 'scannedAt' | 'counter' | 'valid' | 'reason'>[];
 }
 
 export interface TagDetail extends SavedTag {
@@ -90,6 +107,19 @@ export function registerTag(tag: NewTag): Promise<SavedTag> {
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(tag)
   });
+}
+
+// Every call records a scan, so the same tap URL must only be sent once.
+// React runs effects twice in development; caching by URL keeps that to one request.
+const verifyRequests = new Map<string, Promise<VerifyResult>>();
+
+export function verifyTap(search: string): Promise<VerifyResult> {
+  let pending = verifyRequests.get(search);
+  if (!pending) {
+    pending = request<VerifyResult>(`/api/verify${search}`);
+    verifyRequests.set(search, pending);
+  }
+  return pending;
 }
 
 export function deleteTag(uid: string): Promise<void> {
