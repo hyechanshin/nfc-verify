@@ -1,5 +1,5 @@
 import { useState, type FormEvent } from 'react';
-import { Link } from 'react-router';
+import { Link, useSearchParams } from 'react-router';
 import { registerTag, type SavedTag } from '../api';
 import { formatDate, formatUid } from '../format';
 
@@ -21,7 +21,13 @@ function validate(uid: string, itemName: string, key: string): string | null {
 }
 
 export default function RegisterTagPage() {
-  const [uidInput, setUidInput] = useState('');
+  // Opened from the "Register this tag" button on the verify page: /tags/new?uid=..&ctr=..&cmac=..
+  const [params, setParams] = useSearchParams();
+  const tapCtr = params.get('ctr');
+  const tapCmac = params.get('cmac');
+  const tap = tapCtr && tapCmac ? { ctr: tapCtr, cmac: tapCmac } : undefined;
+
+  const [uidInput, setUidInput] = useState(params.get('uid') ?? '');
   const [itemName, setItemName] = useState('');
   const [ownerName, setOwnerName] = useState('');
   const [keyInput, setKeyInput] = useState('');
@@ -44,7 +50,8 @@ export default function RegisterTagPage() {
         uid,
         itemName: itemName.trim(),
         ownerName: ownerName.trim() || undefined,
-        sdmFileReadKey: key
+        sdmFileReadKey: key,
+        tap
       });
       setSaved(tag);
     } catch (err) {
@@ -61,6 +68,7 @@ export default function RegisterTagPage() {
     setKeyInput('');
     setError(null);
     setSaved(null);
+    setParams({});
   }
 
   if (saved) {
@@ -71,7 +79,7 @@ export default function RegisterTagPage() {
           <span className="badge">SAVED</span>
           <div>
             <h2>{saved.itemName}</h2>
-            <p className="subtle">Tag registered</p>
+            <p className="subtle">{tap ? 'Tag registered. Key checked against your tap.' : 'Tag registered'}</p>
           </div>
         </section>
         <section className="card">
@@ -96,6 +104,11 @@ export default function RegisterTagPage() {
       <Link className="back" to="/tags">← All tags</Link>
       <div className="page-title">
         <h2>Register tag</h2>
+        {tap && (
+          <p className="subtle">
+            From a tap of this tag. The key you enter is checked against that tap before saving.
+          </p>
+        )}
       </div>
 
       <form className="card form" onSubmit={handleSubmit} noValidate>
@@ -107,16 +120,24 @@ export default function RegisterTagPage() {
             onChange={(e) => setUidInput(e.target.value)}
             placeholder="04 7F 09 EA A7 22 90"
             autoComplete="off"
-            autoFocus
+            autoFocus={!tap}
+            readOnly={!!tap}
           />
           <small className="subtle">
-            {uid.length === 14 ? `Will be saved as ${uid}` : '7 bytes. Spaces and colons are fine.'}
+            {tap
+              ? 'Read from the tag.'
+              : uid.length === 14 ? `Will be saved as ${uid}` : '7 bytes. Spaces and colons are fine.'}
           </small>
         </label>
 
         <label>
           <span>Item name</span>
-          <input value={itemName} onChange={(e) => setItemName(e.target.value)} placeholder="Leather Wallet" />
+          <input
+            value={itemName}
+            onChange={(e) => setItemName(e.target.value)}
+            placeholder="Leather Wallet"
+            autoFocus={!!tap}
+          />
         </label>
 
         <label>

@@ -168,6 +168,7 @@ a { color: inherit; }
   font-weight: 400;
 }
 .form input.mono { font-family: ui-monospace, Consolas, monospace; }
+.form input[readonly] { background: var(--bg); color: var(--subtle); }
 .form-error {
   margin: 0;
   padding: 10px 12px;
