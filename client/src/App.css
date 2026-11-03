@@ -54,6 +54,7 @@ h3 { margin: 0 0 12px; font-size: 1rem; }
   border-radius: 999px;
 }
 .ok .badge { color: var(--ok); background: var(--ok-bg); }
+.none .badge { color: var(--subtle); background: var(--bg); }
 .bad .badge { color: var(--bad); background: var(--bad-bg); }
 
 table {
@@ -117,6 +118,10 @@ a { color: inherit; }
   background: var(--text);
   border-color: var(--text);
   color: var(--card);
+}
+.btn.danger {
+  color: var(--bad);
+  border-color: var(--bad);
 }
 .btn:disabled { opacity: 0.6; cursor: default; }
 

@@ -1,21 +1,22 @@
 import { Link } from 'react-router';
-import { items } from '../mockData';
+import { useApi, type DashboardData } from '../api';
 import { formatDate } from '../format';
 
 export default function DashboardPage() {
-  const allScans = items.flatMap(({ tag, scans }) =>
-    scans.map((scan) => ({ ...scan, uid: tag.uid, itemName: tag.itemName }))
-  );
-  const invalidScans = allScans
-    .filter((s) => !s.valid)
-    .sort((a, b) => b.scannedAt.localeCompare(a.scannedAt));
-  const flaggedTags = items.filter((i) => !i.tap.valid).length;
+  const { data, error, loading } = useApi<DashboardData>('/api/dashboard');
+
+  if (loading) {
+    return <main><p className="subtle">Loading dashboard…</p></main>;
+  }
+  if (error || !data) {
+    return <main><p className="form-error" role="alert">{error}</p></main>;
+  }
 
   const stats = [
-    { label: 'Total tags', value: items.length },
-    { label: 'Total scans', value: allScans.length },
-    { label: 'Invalid scans', value: invalidScans.length, alert: invalidScans.length > 0 },
-    { label: 'Flagged tags', value: flaggedTags, alert: flaggedTags > 0 }
+    { label: 'Total tags', value: data.totalTags },
+    { label: 'Total scans', value: data.totalScans },
+    { label: 'Invalid scans', value: data.invalidScans, alert: data.invalidScans > 0 },
+    { label: 'Flagged tags', value: data.flaggedTags, alert: data.flaggedTags > 0 }
   ];
 
   return (
@@ -35,7 +36,7 @@ export default function DashboardPage() {
 
       <section className="card">
         <h3>Recent invalid scans</h3>
-        {invalidScans.length === 0 ? (
+        {data.recentInvalidScans.length === 0 ? (
           <p className="subtle">No invalid scans.</p>
         ) : (
           <table>
@@ -49,15 +50,15 @@ export default function DashboardPage() {
               </tr>
             </thead>
             <tbody>
-              {invalidScans.map((s) => (
+              {data.recentInvalidScans.map((s) => (
                 <tr key={`${s.uid}-${s.scannedAt}`}>
                   <td>{formatDate(s.scannedAt)}</td>
                   <td>
-                    <Link to={`/tags/${s.uid}`}>{s.itemName}</Link>
+                    <Link to={`/tags/${s.uid}`}>{s.itemName || 'Deleted tag'}</Link>
                   </td>
                   <td className="mono">{s.uid}</td>
-                  <td>{s.counter}</td>
-                  <td className="mono">{s.ip}</td>
+                  <td>{s.counter ?? '—'}</td>
+                  <td className="mono">{s.ip || '—'}</td>
                 </tr>
               ))}
             </tbody>

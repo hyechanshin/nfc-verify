@@ -2,6 +2,7 @@ import 'dotenv/config';
 import express from 'express';
 import mongoose from 'mongoose';
 import tagRoutes from './routes/tags';
+import dashboardRoutes from './routes/dashboard';
 
 const app = express();
 const PORT = process.env.PORT || 4000;
@@ -17,6 +18,7 @@ app.get('/', (req, res) => {
 
 app.use(express.json());
 app.use('/api/tags', tagRoutes);
+app.use('/api/dashboard', dashboardRoutes);
 
 mongoose.connect(mongoUri)
   .then(() => {
