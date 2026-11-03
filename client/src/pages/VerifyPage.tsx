@@ -9,8 +9,7 @@ function explain(r: VerifyResult): string {
   if (r.reason === 'bad_cmac') {
     return "The tag's signature does not match. The tag or the link may have been tampered with.";
   }
-  return `This link was already used (counter ${r.counter}, last genuine tap ${r.lastGenuineCounter}). ` +
-    'It may have been copied. Tap the tag again for a fresh check.';
+  return 'This link was already used. Tap the tag again for a fresh check.';
 }
 
 // Public page a phone opens when it taps a tag. No admin navigation or private data.
