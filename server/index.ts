@@ -1,4 +1,6 @@
 import 'dotenv/config';
+import fs from 'fs';
+import path from 'path';
 import express from 'express';
 import mongoose from 'mongoose';
 import tagRoutes from './routes/tags';
@@ -12,13 +14,31 @@ if (!mongoUri) {
   throw new Error('MONGO_URI is not set in .env');
 }
 
-app.get('/', (req, res) => {
-  res.send('NFC verify server is running');
+app.get('/api/health', (req, res) => {
+  res.json({ status: 'ok' });
 });
 
 app.use(express.json());
 app.use('/api/tags', tagRoutes);
 app.use('/api/dashboard', dashboardRoutes);
+app.use('/api', (req, res) => {
+  res.status(404).json({ error: 'Not found' });
+});
+
+// In production the server also serves the built React app (client/dist).
+// Scripts run from the server folder, so the client build is one level up.
+const clientDist = path.resolve(process.cwd(), '../client/dist');
+if (fs.existsSync(clientDist)) {
+  app.use(express.static(clientDist));
+  // Let React Router handle page URLs like /tags/047F...
+  app.get('/{*page}', (req, res) => {
+    res.sendFile(path.join(clientDist, 'index.html'));
+  });
+} else {
+  app.get('/', (req, res) => {
+    res.send('NFC verify server is running');
+  });
+}
 
 mongoose.connect(mongoUri)
   .then(() => {
