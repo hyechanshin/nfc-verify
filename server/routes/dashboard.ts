@@ -10,7 +10,21 @@ router.get('/', async (req: Request, res: Response) => {
       Tag.countDocuments(),
       Scan.countDocuments(),
       Scan.countDocuments({ valid: false }),
-      Scan.find({ valid: false }).sort({ scannedAt: -1 }).limit(10).lean(),
+      // The 10 most recently scanned tags, each with its latest scan.
+      Scan.aggregate([
+        { $sort: { scannedAt: -1 } },
+        {
+          $group: {
+            _id: '$tagUid',
+            scannedAt: { $first: '$scannedAt' },
+            counter: { $first: '$counter' },
+            valid: { $first: '$valid' },
+            reason: { $first: '$reason' }
+          }
+        },
+        { $sort: { scannedAt: -1 } },
+        { $limit: 10 }
+      ]),
       // Tags whose most recent scan was invalid.
       Scan.aggregate([
         { $sort: { scannedAt: -1 } },
@@ -20,7 +34,7 @@ router.get('/', async (req: Request, res: Response) => {
       ])
     ]);
 
-    const names = await Tag.find({ uid: { $in: recent.map((s) => s.tagUid) } }, { uid: 1, itemName: 1 }).lean();
+    const names = await Tag.find({ uid: { $in: recent.map((s) => s._id) } }, { uid: 1, itemName: 1 }).lean();
     const nameByUid = new Map(names.map((t) => [t.uid, t.itemName]));
 
     res.json({
@@ -28,12 +42,10 @@ router.get('/', async (req: Request, res: Response) => {
       totalScans,
       invalidScans,
       flaggedTags: flagged[0]?.n ?? 0,
-      recentInvalidScans: recent.map((s) => ({
-        uid: s.tagUid,
-        itemName: nameByUid.get(s.tagUid) ?? null,
-        scannedAt: s.scannedAt,
-        counter: s.counter,
-        ip: s.ip
+      recentTags: recent.map(({ _id, ...scan }) => ({
+        uid: _id,
+        itemName: nameByUid.get(_id) ?? null,
+        ...scan
       }))
     });
   } catch (err) {
