@@ -1,8 +1,10 @@
-import { Link } from 'react-router';
+import { Link, useNavigate } from 'react-router';
 import { useApi, type DashboardData } from '../api';
 import { formatDate } from '../format';
+import ScanResult from '../ScanResult';
 
 export default function DashboardPage() {
+  const navigate = useNavigate();
   const { data, error, loading } = useApi<DashboardData>('/api/dashboard');
 
   if (loading) {
@@ -35,30 +37,30 @@ export default function DashboardPage() {
       </div>
 
       <section className="card">
-        <h3>Recent invalid scans</h3>
-        {data.recentInvalidScans.length === 0 ? (
-          <p className="subtle">No invalid scans.</p>
+        <h3>Recently scanned tags</h3>
+        {data.recentTags.length === 0 ? (
+          <p className="subtle">No scans yet. Tap a registered tag to see it here.</p>
         ) : (
-          <table>
+          <table className="clickable">
             <thead>
               <tr>
-                <th>Time</th>
                 <th>Item</th>
                 <th>UID</th>
+                <th>Last scan</th>
                 <th>Counter</th>
-                <th>IP</th>
+                <th>Status</th>
               </tr>
             </thead>
             <tbody>
-              {data.recentInvalidScans.map((s) => (
-                <tr key={`${s.uid}-${s.scannedAt}`}>
-                  <td>{formatDate(s.scannedAt)}</td>
+              {data.recentTags.map((t) => (
+                <tr key={t.uid} onClick={() => navigate(`/tags/${t.uid}`)}>
                   <td>
-                    <Link to={`/tags/${s.uid}`}>{s.itemName || 'Deleted tag'}</Link>
+                    <Link to={`/tags/${t.uid}`}>{t.itemName || 'Deleted tag'}</Link>
                   </td>
-                  <td className="mono">{s.uid}</td>
-                  <td>{s.counter ?? '—'}</td>
-                  <td className="mono">{s.ip || '—'}</td>
+                  <td className="mono">{t.uid}</td>
+                  <td>{formatDate(t.scannedAt)}</td>
+                  <td>{t.counter ?? '—'}</td>
+                  <td><ScanResult scan={t} /></td>
                 </tr>
               ))}
             </tbody>

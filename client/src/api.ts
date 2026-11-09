@@ -55,13 +55,11 @@ export interface DashboardData {
   totalScans: number;
   invalidScans: number;
   flaggedTags: number;
-  recentInvalidScans: {
+  // The 10 most recently scanned tags, each with its latest scan.
+  recentTags: ({
     uid: string;
     itemName: string | null;
-    scannedAt: string;
-    counter?: number;
-    ip?: string;
-  }[];
+  } & Pick<Scan, 'scannedAt' | 'counter' | 'valid' | 'reason'>)[];
 }
 
 // Error with the HTTP status, so pages can react to e.g. 404 differently.
