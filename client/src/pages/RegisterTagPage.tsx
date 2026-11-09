@@ -75,17 +75,28 @@ export default function RegisterTagPage() {
     return (
       <main>
         <Link className="back" to="/tags">← All tags</Link>
-        <section className="card status ok">
-          <span className="badge">SAVED</span>
+        {/* The server only saves a tag from a tap if the key reproduces that tap's CMAC. */}
+        <section className={`card status ${tap ? 'ok' : 'none'}`}>
+          <span className="badge">{tap ? 'GENUINE' : 'SAVED'}</span>
           <div>
             <h2>{saved.itemName}</h2>
-            <p className="subtle">{tap ? 'Tag registered. Key checked against your tap.' : 'Tag registered'}</p>
+            <p className="subtle">
+              {tap
+                ? 'Registered. The key matched this tap, so the tag is authentic.'
+                : 'Registered, but not checked yet. Tap the tag with a phone to verify it.'}
+            </p>
           </div>
         </section>
         <section className="card">
           <table>
             <tbody>
               <tr><td>UID</td><td className="mono">{formatUid(saved.uid)}</td></tr>
+              {tap && (
+                <>
+                  <tr><td>Tap counter</td><td>Tap #{parseInt(tap.ctr, 16)}</td></tr>
+                  <tr><td>Signature</td><td className="ok-text">Valid</td></tr>
+                </>
+              )}
               <tr><td>Owner</td><td>{saved.ownerName || '—'}</td></tr>
               <tr><td>Registered</td><td>{formatDate(saved.createdAt)}</td></tr>
             </tbody>
