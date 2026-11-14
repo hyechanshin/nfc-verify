@@ -9,6 +9,7 @@ import tagRoutes from './routes/tags';
 import dashboardRoutes from './routes/dashboard';
 import verifyRoutes from './routes/verify';
 import { authRoutes, requireAdmin } from './auth';
+import { migrateSecureData } from './migrate';
 
 const app = express();
 // Render sits behind a proxy; this makes req.ip the visitor's address.
@@ -21,6 +22,9 @@ if (!mongoUri) {
 }
 if (!process.env.ADMIN_PASSWORD) {
   throw new Error('ADMIN_PASSWORD is not set in .env');
+}
+if (!process.env.KEY_ENCRYPTION_SECRET) {
+  throw new Error('KEY_ENCRYPTION_SECRET is not set in .env');
 }
 
 app.get('/api/health', (req, res) => {
@@ -63,8 +67,9 @@ if (fs.existsSync(clientDist)) {
 }
 
 mongoose.connect(mongoUri)
-  .then(() => {
+  .then(async () => {
     console.log('Connected to MongoDB');
+    await migrateSecureData();
     app.listen(PORT, () => {
       console.log(`Server listening on http://localhost:${PORT}`);
     });
