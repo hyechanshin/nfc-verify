@@ -10,11 +10,22 @@ function adminPassword(): string {
   return password;
 }
 
-// Sessions are signed with a key derived from the password,
-// so changing ADMIN_PASSWORD logs everyone out.
+// Sessions are signed with SESSION_SECRET, a long random value kept apart from the
+// password, so a stolen cookie cannot be used to guess the password offline.
+// Changing SESSION_SECRET logs everyone out.
+let warned = false;
+function sessionKey(): Buffer {
+  const secret = process.env.SESSION_SECRET;
+  if (secret) return crypto.createHash('sha256').update(`session:${secret}`).digest();
+  if (!warned) {
+    console.warn('SESSION_SECRET is not set; falling back to a key derived from ADMIN_PASSWORD.');
+    warned = true;
+  }
+  return crypto.createHash('sha256').update(`session:${adminPassword()}`).digest();
+}
+
 function sign(value: string): string {
-  const key = crypto.createHash('sha256').update(`session:${adminPassword()}`).digest();
-  return crypto.createHmac('sha256', key).update(value).digest('hex');
+  return crypto.createHmac('sha256', sessionKey()).update(value).digest('hex');
 }
 
 function safeEqual(a: string, b: string): boolean {
