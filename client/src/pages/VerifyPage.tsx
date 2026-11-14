@@ -6,11 +6,21 @@ import ScanResult from '../ScanResult';
 
 function explain(r: VerifyResult): string {
   if (r.reason === 'ok') return 'This item carries an authentic NFC Verify tag.';
+  if (r.reason === 'reopened') {
+    return `This link was already verified as genuine on ${formatDate(r.scannedAt)}. To check the item again, tap the tag.`;
+  }
   if (r.reason === 'bad_cmac') {
     return "The tag's signature does not match. The tag or the link may have been tampered with.";
   }
   return 'This link was already used. Tap the tag again for a fresh check.';
 }
+
+// A reopened link is grey, never green: only a fresh tap proves the item is genuine.
+const STATUS = {
+  genuine: { css: 'ok', badge: 'GENUINE' },
+  invalid: { css: 'bad', badge: 'INVALID' },
+  checked: { css: 'none', badge: 'ALREADY CHECKED' }
+} as const;
 
 interface TapDetailsProps {
   uid: string;
@@ -133,8 +143,8 @@ export default function VerifyPage() {
 
       {result && (
         <main>
-          <section className={`card status ${result.result === 'genuine' ? 'ok' : 'bad'}`}>
-            <span className="badge">{result.result === 'genuine' ? 'GENUINE' : 'INVALID'}</span>
+          <section className={`card status ${STATUS[result.result].css}`}>
+            <span className="badge">{STATUS[result.result].badge}</span>
             <div>
               <h2>{result.itemName || 'Unnamed item'}</h2>
               <p className="subtle">{explain(result)}</p>
