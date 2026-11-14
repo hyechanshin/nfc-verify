@@ -17,7 +17,9 @@ Each physical item is fitted with an NTAG 424 DNA NFC tag encoded with SDM (Secu
 - **Public verify page** (`/verify`): GENUINE or INVALID, with UID, counter and CMAC in raw hex and readable form, plus recent scan history. No app or account needed.
 - **CMAC check:** AES-128-CMAC (RFC 4493) and the SDM session-key derivation from NXP AN12196, implemented in [`server/sdm.ts`](server/sdm.ts) with Node's `crypto`.
 - **Replay and clone detection:** a tap only counts as genuine if its counter is higher than the last genuine tap.
-- **Scan log:** every tap is stored with time, counter, result, reason and IP.
+- **Reopened links:** opening the last genuine link again (browser history, old tab, refresh) shows a grey "Already checked, tap again" card instead of a false alarm, and is not logged.
+- **Scan log:** every new tap is stored with time, counter, result, reason and a hashed IP.
+- **Encrypted keys:** tag keys are stored encrypted (AES-256-GCM); the admin sees only a key check value and a warning if a tag still uses the factory-default key.
 - **Admin area (password login):** dashboard, tag list, tag detail with scan history, register and delete tags.
 - **Register from a tap:** an unknown tag shows its tap details and a "Register this tag" button. The server only saves it if the key matches that tap's signature.
 
@@ -42,8 +44,10 @@ server/            Express API
   models/          Mongoose schemas: Tag, Scan (Model)
   routes/          verify, tags, dashboard handlers (Controller)
   sdm.ts           AES-CMAC + SDM MAC calculation
+  secure.ts        key encryption, IP hashing, key check value
+  migrate.ts       encrypts old keys / hashes old IPs at startup
   auth.ts          admin login, session cookie, requireAdmin
-  sdm.test.ts      unit tests
+  *.test.ts        unit tests
 docs/              diagrams
 ```
 
@@ -56,8 +60,9 @@ The tag opens `https://nfc-verify.onrender.com/verify?uid=<UID>&ctr=<counter>&cm
 1. derives a session key: `AES-CMAC(key, 3CC3 0001 0080 || UID || counter LSB-first)`
 2. computes `AES-CMAC(session key, empty)` and keeps the odd-indexed bytes
 3. compares that with the `cmac` in the URL (constant time)
-4. checks the counter is higher than the last genuine tap, otherwise flags `replay`
-5. logs the scan and returns the result
+4. if counter and MAC are exactly those of the last genuine tap, answers "already checked" without logging (the same link was reopened)
+5. checks the counter is higher than the last genuine tap, otherwise flags `replay`
+6. logs the scan and returns the result
 
 ![Verification flow](docs/verify-flow.png)
 
@@ -89,6 +94,7 @@ Create `server/.env` (it is git-ignored):
 | `MONGO_URI` | MongoDB connection string |
 | `ADMIN_PASSWORD` | password for the admin pages |
 | `SESSION_SECRET` | long random string that signs admin session cookies |
+| `KEY_ENCRYPTION_SECRET` | long random string that encrypts tag keys and hashes scan IPs. Keep a backup: without it the stored keys cannot be read |
 | `PORT` | optional, default `4000` |
 
 Start the server and the client in **two terminals**:
@@ -131,7 +137,7 @@ Then tap the tag and press **Register this tag (admin)**.
 
 ## Deployment
 
-One Render web service: root directory empty, build command `npm run build`, start command `npm start`, environment variables `MONGO_URI`, `ADMIN_PASSWORD`, `SESSION_SECRET` and `NODE_VERSION=24`. Every push to `main` deploys automatically.
+One Render web service: root directory empty, build command `npm run build`, start command `npm start`, environment variables `MONGO_URI`, `ADMIN_PASSWORD`, `SESSION_SECRET`, `KEY_ENCRYPTION_SECRET` and `NODE_VERSION=24`. Every push to `main` deploys automatically.
 
 ## Git workflow
 
@@ -149,6 +155,7 @@ One Render web service: root directory empty, build command `npm run build`, sta
 - Rate limits per IP: 10 login attempts and 100 verify requests per 15 minutes.
 - Security headers via `helmet` (content security policy, no framing, no MIME sniffing).
 - Forged signatures (`bad_cmac`) are logged for the admin but hidden from the public history and never flag a tag, because anyone can send one for a known UID. A tag is flagged when a link with a valid signature but an old counter is used.
-- Tag keys are never returned by the API. `npm audit` reports no known vulnerabilities.
+- Tag keys are encrypted at rest with AES-256-GCM (random IV, tag UID bound as associated data) using a key from `KEY_ENCRYPTION_SECRET`, and are never returned by the API. A leaked database alone does not reveal them.
+- Scan IPs are stored as keyed HMAC-SHA256 hashes, so the admin can see repeat visitors without storing addresses (GDPR data minimisation). `npm audit` reports no known vulnerabilities.
 
-**Planned** (from course feedback): encrypt SDM keys at rest with AES-256-GCM, store scan IPs as hashes, warn when a tag uses the factory-default key, and move route handlers into `server/controllers/`.
+**Planned** (from course feedback): move route handlers into `server/controllers/`.
