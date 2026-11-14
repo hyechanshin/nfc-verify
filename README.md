@@ -87,7 +87,8 @@ Create `server/.env` (it is git-ignored):
 | Variable | Description |
 | --- | --- |
 | `MONGO_URI` | MongoDB connection string |
-| `ADMIN_PASSWORD` | password for the admin pages (also signs session cookies) |
+| `ADMIN_PASSWORD` | password for the admin pages |
+| `SESSION_SECRET` | long random string that signs admin session cookies |
 | `PORT` | optional, default `4000` |
 
 Start the server and the client in **two terminals**:
@@ -130,7 +131,7 @@ Then tap the tag and press **Register this tag (admin)**.
 
 ## Deployment
 
-One Render web service: root directory empty, build command `npm run build`, start command `npm start`, environment variables `MONGO_URI`, `ADMIN_PASSWORD` and `NODE_VERSION=24`. Every push to `main` deploys automatically.
+One Render web service: root directory empty, build command `npm run build`, start command `npm start`, environment variables `MONGO_URI`, `ADMIN_PASSWORD`, `SESSION_SECRET` and `NODE_VERSION=24`. Every push to `main` deploys automatically.
 
 ## Git workflow
 
@@ -144,7 +145,10 @@ One Render web service: root directory empty, build command `npm run build`, sta
 
 - HTTPS to Render, TLS to MongoDB Atlas, Atlas encrypts data at rest.
 - Secrets only in `.env` / Render environment variables.
-- Admin session: signed httpOnly cookie, constant-time comparisons, delayed response to wrong passwords.
-- Tag keys are never returned by the API.
+- Admin session: httpOnly cookie signed with a separate `SESSION_SECRET`, constant-time comparisons, delayed response to wrong passwords.
+- Rate limits per IP: 10 login attempts and 100 verify requests per 15 minutes.
+- Security headers via `helmet` (content security policy, no framing, no MIME sniffing).
+- Forged signatures (`bad_cmac`) are logged for the admin but hidden from the public history and never flag a tag, because anyone can send one for a known UID. A tag is flagged when a link with a valid signature but an old counter is used.
+- Tag keys are never returned by the API. `npm audit` reports no known vulnerabilities.
 
 **Planned** (from course feedback): encrypt SDM keys at rest with AES-256-GCM, store scan IPs as hashes, warn when a tag uses the factory-default key, and move route handlers into `server/controllers/`.
