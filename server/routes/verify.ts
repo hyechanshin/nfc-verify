@@ -31,6 +31,32 @@ router.get('/', async (req: Request, res: Response) => {
     const lastGenuine = await Scan.findOne({ tagUid: uid, valid: true }).sort({ counter: -1 }).lean();
     const lastGenuineCounter = lastGenuine?.counter ?? null;
 
+    const history = () =>
+      Promise.all([
+        Scan.countDocuments({ tagUid: uid }),
+        Scan.find({ tagUid: uid }).sort({ scannedAt: -1 }).limit(5).select('scannedAt counter valid reason -_id').lean()
+      ]);
+
+    // The exact link of the last genuine tap, opened again from browser history,
+    // an old tab or a refresh. Not a new tap, so it is not logged and does not flag
+    // the tag. It is never shown as genuine either: the visitor is asked to tap again.
+    if (signatureOk && lastGenuine && counter === lastGenuine.counter && cmac === lastGenuine.cmac) {
+      const [scanCount, recentScans] = await history();
+      return res.json({
+        result: 'checked',
+        reason: 'reopened',
+        uid,
+        itemName: tag.itemName ?? null,
+        ctr,
+        counter,
+        cmac,
+        lastGenuineCounter,
+        scannedAt: lastGenuine.scannedAt,
+        scanCount,
+        recentScans
+      });
+    }
+
     let reason: ScanReason = 'ok';
     if (!signatureOk) reason = 'bad_cmac';
     else if (lastGenuineCounter !== null && counter <= lastGenuineCounter) reason = 'replay';
@@ -38,10 +64,7 @@ router.get('/', async (req: Request, res: Response) => {
 
     const scan = await Scan.create({ tagUid: uid, counter, cmac, valid, reason, ip: req.ip });
 
-    const [scanCount, recentScans] = await Promise.all([
-      Scan.countDocuments({ tagUid: uid }),
-      Scan.find({ tagUid: uid }).sort({ scannedAt: -1 }).limit(5).select('scannedAt counter valid reason -_id').lean()
-    ]);
+    const [scanCount, recentScans] = await history();
 
     res.json({
       result: valid ? 'genuine' : 'invalid',

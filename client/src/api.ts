@@ -33,8 +33,9 @@ export interface TagListItem extends SavedTag {
 }
 
 export interface VerifyResult {
-  result: 'genuine' | 'invalid';
-  reason: ScanReason;
+  // checked/reopened: the same link as the last genuine tap, opened again (not logged).
+  result: 'genuine' | 'invalid' | 'checked';
+  reason: ScanReason | 'reopened';
   uid: string;
   itemName: string | null;
   ctr: string;
