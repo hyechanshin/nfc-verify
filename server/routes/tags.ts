@@ -3,42 +3,53 @@ import mongoose from 'mongoose';
 import Tag from '../models/Tag';
 import Scan from '../models/Scan';
 import { sdmMac } from '../sdm';
+import { DEFAULT_KEY_KCV, encryptKey, hashIp, keyCheckValue } from '../secure';
 
 const router = Router();
 
 router.post('/', async (req: Request, res: Response) => {
   const { uid, itemName, ownerName, sdmFileReadKey, tap } = req.body ?? {};
 
+  const plainKey = String(sdmFileReadKey ?? '').trim().toUpperCase();
+  if (!/^[0-9A-F]{32}$/.test(plainKey)) {
+    return res.status(400).json({ error: 'Key must be 32 hex characters (16 bytes)' });
+  }
+  const tagUid = String(uid ?? '').trim().toUpperCase();
+
   // Registering from a tap: prove the key matches the physical tag before saving.
   let claim: { counter: number; cmac: string } | null = null;
   if (tap) {
-    const u = String(uid ?? '').toUpperCase();
-    const key = String(sdmFileReadKey ?? '').toUpperCase();
     const ctr = String(tap.ctr ?? '').toUpperCase();
     const cmac = String(tap.cmac ?? '').toUpperCase();
-    if (!/^[0-9A-F]{14}$/.test(u) || !/^[0-9A-F]{32}$/.test(key) || !/^[0-9A-F]{6}$/.test(ctr) || !/^[0-9A-F]{16}$/.test(cmac)) {
+    if (!/^[0-9A-F]{14}$/.test(tagUid) || !/^[0-9A-F]{6}$/.test(ctr) || !/^[0-9A-F]{16}$/.test(cmac)) {
       return res.status(400).json({ error: 'UID, key or tap data has the wrong format' });
     }
-    if (sdmMac(key, u, ctr) !== cmac) {
+    if (sdmMac(plainKey, tagUid, ctr) !== cmac) {
       return res.status(400).json({ error: "This key doesn't match the tag. Check the key and try again." });
     }
     claim = { counter: parseInt(ctr, 16), cmac };
   }
 
   try {
-    const tag = await Tag.create({ uid, itemName, ownerName, sdmFileReadKey });
+    const tag = await Tag.create({
+      uid: tagUid,
+      itemName,
+      ownerName,
+      sdmFileReadKey: encryptKey(plainKey, tagUid),
+      keyCheckValue: keyCheckValue(plainKey)
+    });
     if (claim) {
-      await Scan.create({ tagUid: tag.uid, ...claim, valid: true, reason: 'ok', ip: req.ip });
+      await Scan.create({ tagUid: tag.uid, ...claim, valid: true, reason: 'ok', ip: hashIp(req.ip) });
     }
     const { sdmFileReadKey: _key, ...safe } = tag.toObject();
-    res.status(201).json(safe);
+    res.status(201).json({ ...safe, defaultKey: safe.keyCheckValue === DEFAULT_KEY_KCV });
   } catch (err) {
     if (err instanceof mongoose.Error.ValidationError) {
       const first = Object.values(err.errors)[0];
       return res.status(400).json({ error: first.message });
     }
     if ((err as { code?: number }).code === 11000) {
-      return res.status(409).json({ error: `A tag with UID ${String(uid).toUpperCase()} is already registered` });
+      return res.status(409).json({ error: `A tag with UID ${tagUid} is already registered` });
     }
     console.error(err);
     res.status(500).json({ error: 'Could not save the tag' });
@@ -61,7 +72,7 @@ router.get('/', async (req: Request, res: Response) => {
       }
     ]);
     const byUid = new Map(lastScans.map(({ _id, ...scan }) => [_id, scan]));
-    res.json(tags.map((tag) => ({ ...tag, lastScan: byUid.get(tag.uid) ?? null })));
+    res.json(tags.map((tag) => ({ ...tag, defaultKey: tag.keyCheckValue === DEFAULT_KEY_KCV, lastScan: byUid.get(tag.uid) ?? null })));
   } catch (err) {
     console.error(err);
     res.status(500).json({ error: 'Could not load tags' });
@@ -77,7 +88,7 @@ router.get('/:uid', async (req: Request<{ uid: string }>, res: Response) => {
       return res.status(404).json({ error: `No tag with UID ${uid}` });
     }
     const scans = await Scan.find({ tagUid: uid }).sort({ scannedAt: -1 }).limit(100).lean();
-    res.json({ ...tag, scans });
+    res.json({ ...tag, defaultKey: tag.keyCheckValue === DEFAULT_KEY_KCV, scans });
   } catch (err) {
     console.error(err);
     res.status(500).json({ error: 'Could not load the tag' });

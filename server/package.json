@@ -7,7 +7,7 @@
     "dev": "tsx watch index.ts",
     "build": "tsc",
     "start": "node dist/index.js",
-    "test": "node --import tsx --test sdm.test.ts"
+    "test": "node --import tsx --test sdm.test.ts secure.test.ts"
   },
   "keywords": [],
   "author": "",

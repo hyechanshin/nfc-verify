@@ -53,6 +53,13 @@ export default function TagDetailPage() {
         </div>
       </section>
 
+      {tag.defaultKey && (
+        <p className="form-error" role="alert">
+          This tag uses the factory-default key (all zeros), so anyone could make a copy that passes the check.
+          Set a unique random key in GoToTags and register the tag again.
+        </p>
+      )}
+
       <section className="card">
         <h3>Tag details</h3>
         <table>
@@ -75,6 +82,11 @@ export default function TagDetailPage() {
               <td>{latest?.counter ?? '—'}</td>
             </tr>
             <tr>
+              <td>Key check value</td>
+              <td className="mono">{tag.keyCheckValue ?? '—'}</td>
+              <td>{tag.defaultKey ? 'Factory-default key' : 'Key stored encrypted'}</td>
+            </tr>
+            <tr>
               <td>Registered</td>
               <td className="mono">—</td>
               <td>{formatDate(tag.createdAt)}</td>
@@ -94,7 +106,7 @@ export default function TagDetailPage() {
                 <th>Time</th>
                 <th>Counter</th>
                 <th>Result</th>
-                <th>IP</th>
+                <th title="A hash of the visitor's IP address. The same visitor gets the same ID.">Visitor</th>
               </tr>
             </thead>
             <tbody>
@@ -103,7 +115,7 @@ export default function TagDetailPage() {
                   <td>{formatDate(s.scannedAt)}</td>
                   <td>{s.counter ?? '—'}</td>
                   <td><ScanResult scan={s} /></td>
-                  <td className="mono">{s.ip || '—'}</td>
+                  <td className="mono">{s.ip ? s.ip.slice(0, 8) : '—'}</td>
                 </tr>
               ))}
             </tbody>

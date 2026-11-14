@@ -3,6 +3,7 @@ import { Router, Request, Response } from 'express';
 import Tag from '../models/Tag';
 import Scan, { ScanReason } from '../models/Scan';
 import { sdmMac } from '../sdm';
+import { decryptKey, hashIp } from '../secure';
 
 const router = Router();
 
@@ -28,7 +29,7 @@ router.get('/', async (req: Request, res: Response) => {
     }
 
     const counter = parseInt(ctr, 16);
-    const expected = Buffer.from(sdmMac(tag.sdmFileReadKey, uid, ctr), 'hex');
+    const expected = Buffer.from(sdmMac(decryptKey(tag.sdmFileReadKey, uid), uid, ctr), 'hex');
     const signatureOk = crypto.timingSafeEqual(expected, Buffer.from(cmac, 'hex'));
 
     // A genuine tap always has a higher counter than the last genuine tap.
@@ -67,7 +68,7 @@ router.get('/', async (req: Request, res: Response) => {
     else if (lastGenuineCounter !== null && counter <= lastGenuineCounter) reason = 'replay';
     const valid = reason === 'ok';
 
-    const scan = await Scan.create({ tagUid: uid, counter, cmac, valid, reason, ip: req.ip });
+    const scan = await Scan.create({ tagUid: uid, counter, cmac, valid, reason, ip: hashIp(req.ip) });
 
     const [scanCount, recentScans] = await history();
 

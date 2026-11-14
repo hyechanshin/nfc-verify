@@ -5,6 +5,7 @@ export interface TagDocument extends Document {
   ownerName?: string;
   itemName?: string;
   sdmFileReadKey: string;
+  keyCheckValue?: string;
   createdAt: Date;
 }
 
@@ -19,15 +20,11 @@ const tagSchema = new Schema<TagDocument>({
   },
   ownerName: { type: String, trim: true },
   itemName: { type: String, trim: true },
-  // Secret: never returned by queries unless explicitly selected.
-  sdmFileReadKey: {
-    type: String,
-    required: [true, 'Key is required'],
-    uppercase: true,
-    trim: true,
-    match: [/^[0-9A-F]{32}$/, 'Key must be 32 hex characters (16 bytes)'],
-    select: false
-  },
+  // Secret, encrypted with AES-256-GCM (see secure.ts) and never returned by
+  // queries unless explicitly selected. The route checks the plain key's format.
+  sdmFileReadKey: { type: String, required: [true, 'Key is required'], select: false },
+  // Not secret: identifies the key (and spots the factory default) without revealing it.
+  keyCheckValue: String,
   createdAt: { type: Date, default: Date.now }
 });
 

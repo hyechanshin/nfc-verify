@@ -15,6 +15,9 @@ export interface SavedTag {
   itemName?: string;
   ownerName?: string;
   createdAt: string;
+  // Identifies the key without revealing it; defaultKey = the all-zeros factory key.
+  keyCheckValue?: string;
+  defaultKey?: boolean;
 }
 
 export type ScanReason = 'ok' | 'bad_cmac' | 'replay';
@@ -25,6 +28,7 @@ export interface Scan {
   counter?: number;
   valid?: boolean;
   reason?: ScanReason;
+  // Keyed hash of the visitor's IP, not the address itself.
   ip?: string;
 }
 
