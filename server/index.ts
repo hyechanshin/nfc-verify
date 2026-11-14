@@ -3,6 +3,8 @@ import fs from 'fs';
 import path from 'path';
 import express from 'express';
 import mongoose from 'mongoose';
+import helmet from 'helmet';
+import rateLimit from 'express-rate-limit';
 import tagRoutes from './routes/tags';
 import dashboardRoutes from './routes/dashboard';
 import verifyRoutes from './routes/verify';
@@ -25,9 +27,18 @@ app.get('/api/health', (req, res) => {
   res.json({ status: 'ok' });
 });
 
-app.use(express.json());
+// Security headers (no sniffing, no framing, a content security policy, ...).
+app.use(helmet());
+app.use(express.json({ limit: '10kb' }));
+
+// Rate limits per IP: stop password guessing and floods of fake taps.
+const tooMany = (message: string) => ({ windowMs: 15 * 60 * 1000, standardHeaders: true, legacyHeaders: false, message: { error: message } });
+const loginLimit = rateLimit({ ...tooMany('Too many login attempts. Try again in 15 minutes.'), limit: 10 });
+const verifyLimit = rateLimit({ ...tooMany('Too many checks from this network. Try again in a few minutes.'), limit: 100 });
+
 // Public: phones tapping a tag, and logging in.
-app.use('/api/verify', verifyRoutes);
+app.use('/api/verify', verifyLimit, verifyRoutes);
+app.use('/api/auth/login', loginLimit);
 app.use('/api/auth', authRoutes);
 // Admin only.
 app.use('/api/tags', requireAdmin, tagRoutes);

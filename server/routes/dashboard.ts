@@ -25,8 +25,11 @@ router.get('/', async (req: Request, res: Response) => {
         { $sort: { scannedAt: -1 } },
         { $limit: 10 }
       ]),
-      // Tags whose most recent scan was invalid.
+      // Tags whose most recent scan with a valid signature was a replay (old link
+      // or cloned data). Forged signatures (bad_cmac) are ignored: anyone can send
+      // those for a known UID, so they must not flag a tag.
       Scan.aggregate([
+        { $match: { reason: { $ne: 'bad_cmac' } } },
         { $sort: { scannedAt: -1 } },
         { $group: { _id: '$tagUid', valid: { $first: '$valid' } } },
         { $match: { valid: false } },

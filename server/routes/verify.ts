@@ -6,6 +6,11 @@ import { sdmMac } from '../sdm';
 
 const router = Router();
 
+// Anyone can send a made-up signature for a known UID, so bad_cmac scans prove
+// nothing about the tag. They are logged for the admin but hidden from the
+// public history, so spam cannot make a genuine item look suspicious.
+const PUBLIC_HISTORY = (uid: string) => ({ tagUid: uid, reason: { $ne: 'bad_cmac' as const } });
+
 // GET /api/verify?uid=..&ctr=..&cmac=.. : the values a tag mirrors into its URL on each tap.
 router.get('/', async (req: Request, res: Response) => {
   const uid = String(req.query.uid ?? '').toUpperCase();
@@ -33,8 +38,8 @@ router.get('/', async (req: Request, res: Response) => {
 
     const history = () =>
       Promise.all([
-        Scan.countDocuments({ tagUid: uid }),
-        Scan.find({ tagUid: uid }).sort({ scannedAt: -1 }).limit(5).select('scannedAt counter valid reason -_id').lean()
+        Scan.countDocuments(PUBLIC_HISTORY(uid)),
+        Scan.find(PUBLIC_HISTORY(uid)).sort({ scannedAt: -1 }).limit(5).select('scannedAt counter valid reason -_id').lean()
       ]);
 
     // The exact link of the last genuine tap, opened again from browser history,
