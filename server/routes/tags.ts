@@ -95,6 +95,34 @@ router.get('/:uid', async (req: Request<{ uid: string }>, res: Response) => {
   }
 });
 
+// Rename a tag. Only the labels can change: the UID is the chip itself, and a new
+// key would need a fresh tap to prove it matches, so both stay as registered.
+router.patch('/:uid', async (req: Request<{ uid: string }>, res: Response) => {
+  const uid = req.params.uid.toUpperCase();
+  const itemName = String(req.body?.itemName ?? '').trim();
+  const ownerName = String(req.body?.ownerName ?? '').trim();
+  if (!itemName) {
+    return res.status(400).json({ error: 'Enter an item name.' });
+  }
+  if (itemName.length > 100 || ownerName.length > 100) {
+    return res.status(400).json({ error: 'Names can be at most 100 characters.' });
+  }
+  try {
+    const tag = await Tag.findOneAndUpdate(
+      { uid },
+      ownerName ? { $set: { itemName, ownerName } } : { $set: { itemName }, $unset: { ownerName: 1 } },
+      { returnDocument: 'after', runValidators: true }
+    ).lean();
+    if (!tag) {
+      return res.status(404).json({ error: `No tag with UID ${uid}` });
+    }
+    res.json({ ...tag, defaultKey: tag.keyCheckValue === DEFAULT_KEY_KCV });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Could not save the changes' });
+  }
+});
+
 // Delete a tag and its scan history.
 router.delete('/:uid', async (req: Request<{ uid: string }>, res: Response) => {
   const uid = req.params.uid.toUpperCase();

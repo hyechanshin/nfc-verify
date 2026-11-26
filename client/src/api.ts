@@ -168,6 +168,14 @@ export function logout(): Promise<{ admin: boolean }> {
   return request('/api/auth/logout', { method: 'POST' });
 }
 
+export function updateTag(uid: string, names: { itemName: string; ownerName: string }): Promise<SavedTag> {
+  return request<SavedTag>(`/api/tags/${uid}`, {
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(names)
+  });
+}
+
 export function deleteTag(uid: string): Promise<void> {
   return request<void>(`/api/tags/${uid}`, { method: 'DELETE' });
 }

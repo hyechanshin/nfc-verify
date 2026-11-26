@@ -156,6 +156,14 @@ export function handleDemo(path: string, method: string, body: unknown): DemoRes
     const found = store.find((t) => t.uid === uid);
     if (!found) return fail(404, `No tag with UID ${uid}`);
     if (method === 'GET') return ok(found);
+    if (method === 'PATCH') {
+      const { itemName, ownerName } = (body ?? {}) as Record<string, string | undefined>;
+      if (!itemName?.trim()) return fail(400, 'Enter an item name.');
+      found.itemName = itemName.trim();
+      found.ownerName = ownerName?.trim() || undefined;
+      const { scans: _scans, ...saved } = found;
+      return ok(saved);
+    }
     if (method === 'DELETE') {
       store = store.filter((t) => t !== found);
       return ok(null, 204);
