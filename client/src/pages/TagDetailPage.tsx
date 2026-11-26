@@ -1,5 +1,5 @@
-import { useState, type FormEvent } from 'react';
-import { Link, useNavigate, useParams } from 'react-router';
+import { useEffect, useState, type FormEvent } from 'react';
+import { Link, useNavigate, useParams, useSearchParams } from 'react-router';
 import { deleteTag, updateTag, useApi, type SavedTag, type TagDetail } from '../api';
 import { counterHex, formatDate, formatUid } from '../format';
 import ScanResult from '../ScanResult';
@@ -7,6 +7,7 @@ import ScanResult from '../ScanResult';
 export default function TagDetailPage() {
   const { uid = '' } = useParams();
   const navigate = useNavigate();
+  const [searchParams, setSearchParams] = useSearchParams();
   const { data: tag, error, loading } = useApi<TagDetail>(`/api/tags/${uid}`);
   const [deleting, setDeleting] = useState(false);
   const [deleteError, setDeleteError] = useState<string | null>(null);
@@ -17,6 +18,15 @@ export default function TagDetailPage() {
   const [editError, setEditError] = useState<string | null>(null);
   // Names after a successful edit, shown instead of the loaded ones.
   const [renamed, setRenamed] = useState<Pick<SavedTag, 'itemName' | 'ownerName'> | null>(null);
+
+  // Opened with ?edit=1 (from "Edit tag" after registering): start in edit mode once loaded.
+  useEffect(() => {
+    if (!tag || searchParams.get('edit') !== '1') return;
+    setItemName(tag.itemName ?? '');
+    setOwnerName(tag.ownerName ?? '');
+    setEditing(true);
+    setSearchParams({}, { replace: true });
+  }, [tag, searchParams, setSearchParams]);
 
   if (loading) {
     return <main><p className="subtle">Loading tag…</p></main>;
