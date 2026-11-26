@@ -104,6 +104,7 @@ export default function RegisterTagPage() {
         </section>
         <div className="actions">
           <button className="btn primary" onClick={reset}>Register another</button>
+          <Link className="btn" to={`/tags/${saved.uid}?edit=1`}>Edit tag</Link>
           <Link className="btn" to="/tags">Back to tags</Link>
         </div>
       </main>
