@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { demoActive, exitDemo, handleDemo } from './demo';
 
 export interface NewTag {
   uid: string;
@@ -75,6 +76,16 @@ export class ApiError extends Error {
 }
 
 async function request<T>(path: string, init?: RequestInit): Promise<T> {
+  // Demo mode: admin calls are answered from sample data in the browser and never
+  // sent to the server. The public verify page always checks real taps.
+  if (demoActive() && !path.startsWith('/api/verify')) {
+    const body = typeof init?.body === 'string' ? JSON.parse(init.body) : undefined;
+    const res = handleDemo(path, init?.method ?? 'GET', body);
+    await new Promise((resolve) => setTimeout(resolve, 150));
+    if (res.status >= 400) throw new ApiError((res.body as { error: string }).error, res.status);
+    return res.body as T;
+  }
+
   let res: Response;
   try {
     res = await fetch(path, init);
@@ -150,6 +161,10 @@ export function login(password: string): Promise<{ admin: boolean }> {
 }
 
 export function logout(): Promise<{ admin: boolean }> {
+  if (demoActive()) {
+    exitDemo();
+    return Promise.resolve({ admin: false });
+  }
   return request('/api/auth/logout', { method: 'POST' });
 }
 
