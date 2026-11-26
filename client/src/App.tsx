@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { BrowserRouter, Routes, Route, Navigate, NavLink, Outlet } from 'react-router';
 import { getSession, logout } from './api';
+import { demoActive } from './demo';
 import DashboardPage from './pages/DashboardPage';
 import TagsPage from './pages/TagsPage';
 import TagDetailPage from './pages/TagDetailPage';
@@ -43,8 +44,13 @@ function AdminLayout() {
           <NavLink to="/dashboard">Dashboard</NavLink>
           <NavLink to="/tags">Tags</NavLink>
         </nav>
-        <button className="btn logout" onClick={handleLogout}>Log out</button>
+        <button className="btn logout" onClick={handleLogout}>{demoActive() ? 'Exit demo' : 'Log out'}</button>
       </header>
+      {demoActive() && (
+        <div className="demo-banner" role="status">
+          <strong>Demo</strong> · Sample data only. Changes are not saved and reset when you refresh.
+        </div>
+      )}
       <Outlet />
     </div>
   );

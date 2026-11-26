@@ -1,5 +1,6 @@
 import { useState, type FormEvent } from 'react';
 import { login } from '../api';
+import { enterDemo } from '../demo';
 
 export default function LoginPage({ onLogin }: { onLogin: () => void }) {
   const [password, setPassword] = useState('');
@@ -51,6 +52,23 @@ export default function LoginPage({ onLogin }: { onLogin: () => void }) {
             </button>
           </div>
         </form>
+
+        <section className="card demo-card">
+          <div>
+            <h3>Just looking?</h3>
+            <p className="subtle">Explore the dashboard and tags with sample data. You can add and delete tags; nothing is saved.</p>
+          </div>
+          <button
+            className="btn"
+            type="button"
+            onClick={() => {
+              enterDemo();
+              onLogin();
+            }}
+          >
+            Try it out (demo)
+          </button>
+        </section>
       </main>
     </div>
   );
