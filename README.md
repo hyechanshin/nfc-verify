@@ -47,6 +47,8 @@ server/            Express API
   secure.ts        key encryption, IP hashing, key check value
   migrate.ts       encrypts old keys / hashes old IPs at startup
   auth.ts          admin login, session cookie, requireAdmin
+  env.ts           startup check for required environment variables
+  .env.example     template for server/.env (copy it, fill it in)
   *.test.ts        unit tests
 docs/              diagrams
 ```
@@ -78,26 +80,68 @@ The tag opens `https://nfc-verify.onrender.com/verify?uid=<UID>&ctr=<counter>&cm
 | GET / POST | `/api/tags` | admin | list / register tags |
 | GET / DELETE | `/api/tags/:uid` | admin | tag with scans / delete tag |
 
-## Running locally
+## Setup, step by step
 
-**Prerequisites:** Node.js 24, npm, and a MongoDB database (for example a free MongoDB Atlas cluster with your IP on the Network Access list).
+Follow these steps in order to run the whole system on your own computer.
+
+### 1. Install the tools
+
+- [Node.js 24](https://nodejs.org) (check with `node -v`; npm comes with it)
+- [Git](https://git-scm.com)
+- A free [MongoDB Atlas](https://www.mongodb.com/cloud/atlas) account
+
+### 2. Get the code
 
 ```bash
 git clone https://github.com/hyechanshin/nfc-verify.git
 cd nfc-verify
 ```
 
-Create `server/.env` (it is git-ignored):
+### 3. Create the database (MongoDB Atlas)
 
-| Variable | Description |
-| --- | --- |
-| `MONGO_URI` | MongoDB connection string |
-| `ADMIN_PASSWORD` | password for the admin pages |
-| `SESSION_SECRET` | long random string that signs admin session cookies |
-| `KEY_ENCRYPTION_SECRET` | long random string that encrypts tag keys and hashes scan IPs. Keep a backup: without it the stored keys cannot be read |
-| `PORT` | optional, default `4000` |
+1. In Atlas, create a free **M0** cluster.
+2. **Security → Database & Network Access → Database Users → Add New Database User.** Choose a username and a password (use the autogenerate button and save it) with the built-in role *Read and write to any database*.
+3. **Security → Database & Network Access → IP Access List → Add IP Address → Add Current IP Address.** Do not choose "Allow access from anywhere" (`0.0.0.0/0`); see [Security notes](#security-notes). Atlas can make an entry temporary, which is a good fit for a development laptop.
+4. **Database → Connect → Drivers.** Copy the connection string, replace `<password>` with the user's password and add the database name before the `?`, for example `mongodb+srv://user:password@cluster0.abcde.mongodb.net/nfc-verify?retryWrites=true&w=majority`.
 
-Start the server and the client in **two terminals**:
+### 4. Set the environment variables
+
+Copy the template, then open `server/.env` and fill it in (`.env` is git-ignored, so secrets are never committed):
+
+```bash
+cp server/.env.example server/.env        # Windows Command Prompt: copy server\.env.example server\.env
+```
+
+| Variable | Required | Description |
+| --- | --- | --- |
+| `MONGO_URI` | yes | MongoDB connection string from step 3 |
+| `ADMIN_PASSWORD` | yes | password for the admin pages |
+| `KEY_ENCRYPTION_SECRET` | yes | long random string that encrypts tag keys and hashes scan IPs. Keep a backup: without it the stored keys cannot be read |
+| `SESSION_SECRET` | recommended | long random string that signs admin session cookies. If it is missing, a key derived from `ADMIN_PASSWORD` is used and a warning is logged |
+| `PORT` | no | default `4000` (Render sets it itself) |
+
+Generate each random secret with:
+
+```bash
+node -e "console.log(require('crypto').randomBytes(32).toString('hex'))"
+```
+
+**A missing required variable stops the server at startup** with one message that lists every missing variable and how to set it, so a wrong deploy fails immediately and visibly:
+
+```
+Cannot start: 2 required environment variables are missing.
+
+  ADMIN_PASSWORD         Password for the admin pages. Use a long one.
+  KEY_ENCRYPTION_SECRET  Long random string that encrypts tag keys. Keep a backup.
+
+Running locally: add them to server/.env (copy server/.env.example to start).
+Running on Render or another host: add them in the service settings under Environment, then redeploy.
+...
+```
+
+### 5. Install and start
+
+Start the server and the client in **two terminals** (each folder has its own `package.json`, so run the commands inside the folder):
 
 ```bash
 # terminal 1
@@ -111,19 +155,39 @@ npm install
 npm run dev      # http://localhost:5173
 ```
 
-Run the tests:
+Terminal 1 should print `Connected to MongoDB` and `Server listening on http://localhost:4000`. Open **http://localhost:5173** (in development, port 4000 is only the API), open the admin login and sign in with your `ADMIN_PASSWORD`.
+
+### 6. Run the tests
 
 ```bash
 cd server
 npm test
 ```
 
-Production build (what Render runs), from the repository root:
+### 7. Try it with a tag
+
+Prepare a tag as described in [Preparing a tag](#preparing-a-tag), tap it, and press **Register this tag (admin)**.
+
+### Production build on your computer
+
+What Render runs, from the repository root:
 
 ```bash
 npm run build    # builds client/dist and server/dist
 npm start        # app + API on http://localhost:4000
 ```
+
+### Troubleshooting
+
+| What you see | Cause and fix |
+| --- | --- |
+| `Cannot start: ... required environment variables ... missing` | A variable is not set. Add it to `server/.env` (locally) or under **Environment** in the Render service, then restart or redeploy. |
+| `Could not connect to MongoDB` (often after about 30 seconds) | Atlas is refusing the connection. Check that your IP (locally) or Render's outbound IP ranges (deployed) are on the Atlas IP Access List, and that the user, password and cluster in `MONGO_URI` are right. |
+| `bad auth` in the MongoDB message | Wrong database user or password in `MONGO_URI`. Special characters in the password must be URL-encoded. |
+| Deploy on Render fails or never becomes live | Open **Logs**: the server prints one of the two messages above and exits. Fix it and redeploy. |
+| `npm run` does nothing or says a script is missing | You are in the repository root. Run it inside `server/` or `client/`. |
+| `http://localhost:4000` shows only "NFC verify server is running" | That is the API. In development open `http://localhost:5173`. |
+| The live demo takes about a minute to load | The free Render server was asleep and is starting up. |
 
 ## Preparing a tag
 
@@ -135,9 +199,28 @@ Tags are configured once outside the app (browsers cannot write NTAG 424 setting
 
 Then tap the tag and press **Register this tag (admin)**.
 
-## Deployment
+## Deployment (Render)
 
-One Render web service: root directory empty, build command `npm run build`, start command `npm start`, environment variables `MONGO_URI`, `ADMIN_PASSWORD`, `SESSION_SECRET`, `KEY_ENCRYPTION_SECRET` and `NODE_VERSION=24`. Every push to `main` deploys automatically.
+The whole app runs as one Render web service (API and frontend together). Every push to `main` deploys automatically.
+
+1. Push the code to GitHub and make sure `main` is up to date.
+2. On [render.com](https://render.com): **New → Web Service** and connect the GitHub repository.
+3. Settings: Root Directory empty, Build Command `npm run build`, Start Command `npm start`, instance type Free.
+4. Under **Environment**, add `MONGO_URI`, `ADMIN_PASSWORD`, `SESSION_SECRET`, `KEY_ENCRYPTION_SECRET` and `NODE_VERSION` = `24`. Add them **before** the first deploy: without them the server stops at startup with the message shown above and the deploy fails (the reason is in the **Logs**).
+5. Deploy. The logs should show `Connected to MongoDB` and `Server listening on ...`.
+6. Restrict database access to the server (next section).
+7. Open the service URL. After a period without visitors the first load can take up to a minute.
+
+### Restrict database access to the server
+
+Atlas should accept connections only from the server, not from the whole internet:
+
+1. In Render, open the service → **Connect** (top right) → **Outbound** tab and copy the IP ranges.
+2. In Atlas: **Security → Database & Network Access → IP Access List → Add IP Address** and add each range.
+3. Delete the `0.0.0.0/0` ("Allow access from anywhere") entry. Keep your own IP only while you develop.
+4. In Render use **Manual Deploy** (or restart) and check that the logs say `Connected to MongoDB`.
+
+Render can change its outbound ranges and announces this in the dashboard. If the server suddenly cannot connect, copy the current list from the **Outbound** tab again.
 
 ## Git workflow
 
@@ -150,6 +233,7 @@ One Render web service: root directory empty, build command `npm run build`, sta
 ## Security notes
 
 - HTTPS to Render, TLS to MongoDB Atlas, Atlas encrypts data at rest.
+- **Database access:** the browser never talks to MongoDB. Only the Express server holds the connection string, and the React app reaches data only through the `/api` routes (admin routes need the login). Atlas Network Access accepts only the server's outbound IP ranges from Render (plus a developer's own IP while developing), not `0.0.0.0/0`. A leaked or guessed database password is therefore useless from any other network, and the database is not exposed to the public internet. Limits: Render's outbound ranges are shared by other Render services in the same region, and free Atlas clusters do not support private endpoints or VPC peering, so a fully private connection would need Render dedicated IPs or a paid Atlas cluster. For that reason the other layers matter too: tag keys are encrypted with a secret that is not stored in the database, so the database password alone does not reveal them.
 - Secrets only in `.env` / Render environment variables.
 - Admin session: httpOnly cookie signed with a separate `SESSION_SECRET`, constant-time comparisons, delayed response to wrong passwords.
 - Rate limits per IP: 10 login attempts and 100 verify requests per 15 minutes.
