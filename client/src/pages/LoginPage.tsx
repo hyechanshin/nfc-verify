@@ -1,4 +1,5 @@
 import { useState, type FormEvent } from 'react';
+import { useNavigate } from 'react-router';
 import { login } from '../api';
 import { enterDemo } from '../demo';
 
@@ -6,6 +7,7 @@ export default function LoginPage({ onLogin }: { onLogin: () => void }) {
   const [password, setPassword] = useState('');
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
+  const navigate = useNavigate();
 
   async function handleSubmit(e: FormEvent) {
     e.preventDefault();
@@ -64,6 +66,8 @@ export default function LoginPage({ onLogin }: { onLogin: () => void }) {
             onClick={() => {
               enterDemo();
               onLogin();
+              // Always start the demo on the dashboard, not on whatever page was open.
+              navigate('/dashboard', { replace: true });
             }}
           >
             Try it out (demo)
