@@ -1,4 +1,4 @@
-import 'dotenv/config';
+import { checkEnv } from './env';
 import fs from 'fs';
 import path from 'path';
 import express from 'express';
@@ -11,21 +11,15 @@ import verifyRoutes from './routes/verify';
 import { authRoutes, requireAdmin } from './auth';
 import { migrateSecureData } from './migrate';
 
+// Stop right away, with one clear message, if a required environment variable is missing.
+checkEnv();
+
 const app = express();
 // Render sits behind a proxy; this makes req.ip the visitor's address.
 app.set('trust proxy', 1);
 const PORT = process.env.PORT || 4000;
 
-const mongoUri = process.env.MONGO_URI;
-if (!mongoUri) {
-  throw new Error('MONGO_URI is not set in .env');
-}
-if (!process.env.ADMIN_PASSWORD) {
-  throw new Error('ADMIN_PASSWORD is not set in .env');
-}
-if (!process.env.KEY_ENCRYPTION_SECRET) {
-  throw new Error('KEY_ENCRYPTION_SECRET is not set in .env');
-}
+const mongoUri = process.env.MONGO_URI as string; // presence checked by checkEnv()
 
 app.get('/api/health', (req, res) => {
   res.json({ status: 'ok' });
@@ -66,14 +60,25 @@ if (fs.existsSync(clientDist)) {
   });
 }
 
-mongoose.connect(mongoUri)
-  .then(async () => {
-    console.log('Connected to MongoDB');
-    await migrateSecureData();
-    app.listen(PORT, () => {
-      console.log(`Server listening on http://localhost:${PORT}`);
-    });
-  })
-  .catch((err) => {
-    console.error('MongoDB connection failed:', err);
+async function start() {
+  try {
+    await mongoose.connect(mongoUri);
+  } catch (err) {
+    // Exit instead of staying alive without a database: on a host like Render a server
+    // that never starts listening looks like a hung deploy with no explanation.
+    console.error('Could not connect to MongoDB:', err instanceof Error ? err.message : err);
+    console.error('Check that MONGO_URI is correct (user, password, cluster) and that MongoDB Atlas');
+    console.error('lets this server connect (Atlas > Security > Database & Network Access > IP Access List). See "Troubleshooting" in the README.');
+    process.exit(1);
+  }
+  console.log('Connected to MongoDB');
+  await migrateSecureData();
+  app.listen(PORT, () => {
+    console.log(`Server listening on http://localhost:${PORT}`);
   });
+}
+
+start().catch((err) => {
+  console.error('Startup failed:', err);
+  process.exit(1);
+});
