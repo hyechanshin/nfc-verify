@@ -22,7 +22,14 @@ function AdminLayout() {
   }, []);
 
   async function handleLogout() {
+    const wasDemo = demoActive();
     await logout().catch(() => {});
+    if (wasDemo) {
+      // Leave the demo with a clean slate: reload the home page so all sample data
+      // and demo pages (e.g. /tags/DE...) are gone.
+      window.location.assign('/');
+      return;
+    }
     setAdmin(false);
   }
 
